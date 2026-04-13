@@ -87,6 +87,8 @@ contract ClawdETHHarvester is Ownable2Step, ReentrancyGuard {
 
     // -------- harvest -------------------------------------------------------
 
+    /// @notice Known issue: no token-rescue function exists on this contract. Any WETH or CLAWD stuck mid-harvest (e.g. partial swapper failure, stray transfer) would be permanently trapped. Acceptable because the harvester only holds tokens transiently within a single harvest transaction.
+    /// @notice Known issue: no minimum yield enforced before harvesting. The keeper (CLIENT) can harvest dust amounts, wasting gas. Not exploitable by third parties since only the keeper can call this function.
     /// @notice Harvest yield and split the bought CLAWD. Keeper-only.
     /// @param minWethOut slippage guard on the wstETH->WETH unwrap inside the vault.
     /// @param minClawdOut slippage guard on the WETH->CLAWD swap. Keeper computes off-chain.

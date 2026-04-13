@@ -36,6 +36,7 @@ contract DeployScript is ScaffoldETHDeploy {
 
         // 3. Deploy harvester. Keeper initially = CLIENT so only CLIENT can trigger harvests.
         //    Owner = CLIENT directly (no wiring needed from harvester side).
+        /// @notice Known issue: Harvester ownership is assigned via the constructor (Ownable(owner_) directly) rather than a two-step transfer. This is safe in a constructor context, but is asymmetric with Vault and Rewards which use Ownable2Step and require CLIENT to call acceptOwnership().
         ClawdETHHarvester harvester = new ClawdETHHarvester(
             vault, rewards, IERC20(weth), IERC20(clawd), swapper, CLIENT, DEFAULT_BURN_BPS, CLIENT
         );
@@ -45,6 +46,7 @@ contract DeployScript is ScaffoldETHDeploy {
         rewards.setRewardsNotifier(address(harvester));
 
         // 5. Hand ownership to CLIENT (2-step: CLIENT must `acceptOwnership()` to finalize).
+        /// @notice Known issue: privileged-role handoff is initiated here but not finalized on-chain. CLIENT must call acceptOwnership() on ClawdETHVault and ClawdETHRewards post-deploy; until then, deployer retains owner privileges on those contracts.
         vault.transferOwnership(CLIENT);
         rewards.transferOwnership(CLIENT);
 

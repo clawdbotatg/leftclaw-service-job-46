@@ -175,6 +175,9 @@ const TabButton = ({
 
 // ---------------- panels ----------------
 
+// Known issue: action buttons disable when !address instead of rotating through Connect Wallet → Switch Network → Action. No "switch network" CTA exists if the user is on the wrong chain.
+// Known issue: no USD conversion shown alongside ETH input amounts (QA polish item).
+// Known issue: raw <input type="number"> is used instead of the SE-2 EtherInput component, losing the ETH/USD toggle.
 const DepositPanel = () => {
   const { address } = useAccount();
   const [amount, setAmount] = useState("");
@@ -312,6 +315,7 @@ const StakePanel = () => {
 
   const needsApproval = parsed > 0n && (allowance ?? 0n) < parsed;
 
+  // Known issue: double-approval race — the Approve button is only disabled while isPending (approving). A second click between tx-hash-returned and tx-confirmed can fire a duplicate approval.
   const { writeContractAsync: approve, isPending: approving } = useScaffoldWriteContract({
     contractName: "ClawdETHVault",
   });

@@ -55,6 +55,7 @@ contract ClawdETHVault is ERC4626, Ownable2Step, ReentrancyGuard {
         emit HarvesterUpdated(newHarvester);
     }
 
+    /// @notice Known issue: setGateway migrates the gateway address but does not move the existing wstETH position. If the new gateway cannot honor the previously-wrapped wstETH, user funds could be bricked. Owner-only via Ownable2Step (centralization risk accepted).
     function setGateway(IWstETHGateway newGateway) external onlyOwner {
         if (address(newGateway) == address(0)) revert ZeroAddress();
         require(address(newGateway.wstETH()) == address(wstETH), "wstETH mismatch");
@@ -120,8 +121,11 @@ contract ClawdETHVault is ERC4626, Ownable2Step, ReentrancyGuard {
         _burn(owner_, shares);
         principal -= assets;
 
-        // Need to unwrap enough wstETH to yield `assets` WETH. Over-approve by quoting.
+        // Compute wstETH needed to cover `assets` WETH. wethToWstETH truncates (rounds down),
+        // so if the rounded-down quote underdelivers, bump by 1 wei of wstETH. Without this bump
+        // the unwrap reverts on the minWethOut check whenever the rate exceeds 1.0 (i.e. any yield).
         uint256 wstNeeded = gateway.wethToWstETH(assets);
+        if (gateway.wstETHToWETH(wstNeeded) < assets) wstNeeded += 1;
         IERC20(wstETH).forceApprove(address(gateway), wstNeeded);
         uint256 wethOut = gateway.unwrap(wstNeeded, assets);
         require(wethOut >= assets, "slippage");
@@ -159,6 +163,7 @@ contract ClawdETHVault is ERC4626, Ownable2Step, ReentrancyGuard {
         emit YieldHarvested(wstYield, wethYield);
     }
 
+    /// @notice Known issue: receive() is open to any ETH sender. Stray ETH sent here has no recovery path and will be permanently stuck. Low blast radius — no protocol flow depends on the ETH balance.
     receive() external payable {
         // Only accept ETH from WETH unwraps (none currently expected, but keep open for gateway flex).
     }

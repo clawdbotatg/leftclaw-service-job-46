@@ -10,6 +10,7 @@ export const metadata = getMetadata({
   description: "ETH liquid staking with CLAWD-redirected yield. Deposit ETH, earn CLAWD.",
 });
 
+// Known issue: <html> tag has no explicit lang attribute — minor a11y nit
 const ScaffoldEthApp = ({ children }: { children: React.ReactNode }) => {
   return (
     <html suppressHydrationWarning className={``}>

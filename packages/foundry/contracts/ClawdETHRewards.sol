@@ -121,6 +121,7 @@ contract ClawdETHRewards is Ownable2Step, ReentrancyGuard {
         emit NotifierUpdated(notifier);
     }
 
+    /// @notice Known issue: setRewardsDuration does not call updateReward before changing duration. This is safe because the function is guarded by periodFinish <= block.timestamp, so it only takes effect for the next period and cannot affect in-flight reward accounting.
     function setRewardsDuration(uint256 duration) external onlyOwner {
         require(block.timestamp >= periodFinish, "period active");
         require(duration > 0, "zero duration");
@@ -128,6 +129,7 @@ contract ClawdETHRewards is Ownable2Step, ReentrancyGuard {
         emit RewardsDurationUpdated(duration);
     }
 
+    /// @notice Known issue: rate math can extend an existing stream with rounding dust when a new reward notification arrives mid-period. Standard Synthetix pattern; rate is re-leveled against the actual contract balance so dust never exceeds funding.
     /// @notice Called by the harvester after a buyback. Transfers CLAWD in + starts a new stream.
     function notifyRewardAmount(uint256 reward) external updateReward(address(0)) {
         if (msg.sender != rewardsNotifier) revert NotNotifier();
@@ -150,6 +152,7 @@ contract ClawdETHRewards is Ownable2Step, ReentrancyGuard {
         emit RewardAdded(reward);
     }
 
+    /// @notice Known issue: recoverERC20 can sweep the rewards token (CLAWD), which would drain accrued-but-unclaimed rewards. Standard Synthetix pattern; acceptable because the owner (CLIENT) is trusted. A stricter implementation would also block rewardsToken or subtract outstanding earnings before allowing recovery.
     /// @notice Rescue non-staking tokens accidentally sent to the contract.
     function recoverERC20(IERC20 token, uint256 amount) external onlyOwner {
         if (address(token) == address(stakingToken)) revert CannotRecoverStake();

@@ -92,6 +92,43 @@ contract ClawdETHTest is Test {
         assertEq(vault.principal(), 6 ether);
     }
 
+    function testWithdrawAfterYield() public {
+        // Alice deposits 10 ETH at a 1:1 rate.
+        vm.prank(alice);
+        vault.depositETH{ value: 10 ether }(alice);
+
+        // Simulate 10% wstETH appreciation — vault now holds more value than principal.
+        gateway.setRateBps(11_000);
+
+        // Partial withdraw should succeed despite integer-division rounding in wethToWstETH.
+        // Before the fix, wstNeeded was rounded down and the unwrap reverted on the slippage check.
+        vm.prank(alice);
+        vault.withdraw(4 ether, alice, alice);
+
+        assertEq(weth.balanceOf(alice), 4 ether, "alice received exactly 4 WETH");
+        assertEq(vault.principal(), 6 ether, "principal reduced by withdrawn amount");
+    }
+
+    function testWithdrawAllAfterYield() public {
+        // Alice deposits 10 ETH at a 1:1 rate.
+        vm.prank(alice);
+        vault.depositETH{ value: 10 ether }(alice);
+
+        // 10% yield accrues. Pre-fund gateway with the extra 1 WETH of yield so it can pay
+        // out the full 11 WETH when unwrapping 10 wstETH at the new rate (10 * 1.1 = 11 WETH).
+        gateway.setRateBps(11_000);
+        _fundGatewayWithYield(1 ether);
+
+        // Full redeem should succeed — no rounding revert.
+        uint256 shares = vault.balanceOf(alice);
+        vm.prank(alice);
+        vault.redeem(shares, alice, alice);
+
+        assertEq(vault.balanceOf(alice), 0, "all shares burned");
+        assertEq(vault.principal(), 0, "principal zeroed");
+        assertGe(weth.balanceOf(alice), 10 ether, "alice received at least her principal");
+    }
+
     function testWithdrawAllDrainsPosition() public {
         vm.prank(alice);
         vault.depositETH{ value: 3 ether }(alice);
